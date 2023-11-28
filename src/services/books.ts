@@ -22,3 +22,20 @@ export const updateBook = async (bookId: number, book: Book) => {
 		},
 	});
 };
+
+export const deleteBookById = async (bookId: number): Promise<boolean> => {
+	try {
+		const book = await Book.findOne({
+			where: { bookId },
+		});
+		if (book) {
+			Book.destroy({
+				where: { bookId },
+			});
+			return true; // Book was found and deleted
+		}
+		return false; // Book not found
+	} catch (error) {
+		throw new Error("Unable to delete book"); // Handle database errors or other issues
+	}
+};

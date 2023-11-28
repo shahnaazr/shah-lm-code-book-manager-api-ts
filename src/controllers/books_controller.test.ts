@@ -133,3 +133,51 @@ describe("POST /api/v1/books endpoint", () => {
 		expect(res.statusCode).toEqual(400);
 	});
 });
+
+describe("DELETE /api/v1/books/{bookId} endpoint", () => {
+	test("Calling delete book endpoint with book id which exists should successfully delete the book", async () => {
+		// Arrange
+		const mockDeleteBookById = jest
+			.spyOn(bookService, "deleteBookById")
+			.mockResolvedValue(true);
+
+		// Act
+		const res = await request(app).delete("/api/v1/books/2");
+
+		// Assert
+		expect(mockDeleteBookById).toHaveBeenCalledWith(2);
+		expect(res.statusCode).toEqual(200);
+		expect(res.body).toEqual("Book deleted successfully for book id, 2");
+	});
+
+	test("Calling delete book endpoint with an book id which does not exist should return book not found", async () => {
+		// Arrange
+
+		const mockDeleteBookById = jest
+			.spyOn(bookService, "deleteBookById")
+			.mockResolvedValue(false);
+
+		// Act
+		const res = await request(app).delete("/api/v1/books/77");
+
+		// Assert
+		expect(mockDeleteBookById).toHaveBeenCalledWith(77);
+		expect(res.statusCode).toEqual(404);
+		expect(res.body).toEqual("Book not found for book id, 77");
+	});
+
+	test("Calling delete book endpoint when database is down should return internal server error", async () => {
+		// Arrange
+		const mockDeleteBookById = jest
+			.spyOn(bookService, "deleteBookById")
+			.mockRejectedValue("Internal server error");
+
+		// Act
+		const res = await request(app).delete("/api/v1/books/2");
+
+		// Assert
+		expect(mockDeleteBookById).toHaveBeenCalledWith(2);
+		expect(res.statusCode).toEqual(500);
+		expect(res.body).toEqual("Internal server error");
+	});
+});

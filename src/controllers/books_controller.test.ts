@@ -3,6 +3,7 @@ import { app } from "../app";
 import { Book } from "../models/book";
 
 import * as bookService from "../services/books";
+
 jest.mock("../services/books");
 
 afterEach(() => {
@@ -108,29 +109,83 @@ describe("GET /api/v1/books/{bookId} endpoint", () => {
 });
 
 describe("POST /api/v1/books endpoint", () => {
-	test("status code successfully 201 for saving a valid book", async () => {
+	test("should return a saved book", async () => {
+		// Arrange
+		const bookToBeSaved = {
+			bookId: 3,
+			title: "Fantastic Mr. Fox",
+			author: "Roald Dahl",
+			description: "this is a Fantastic book by Roald Dahl",
+		};
+
+		const createdBook = Object.assign(new Book(), bookToBeSaved);
+
+		jest.spyOn(bookService, "saveBook").mockResolvedValueOnce(createdBook);
+
 		// Act
-		const res = await request(app)
-			.post("/api/v1/books")
-			.send({ bookId: 3, title: "Fantastic Mr. Fox", author: "Roald Dahl" });
+		const res = await request(app).post("/api/v1/books").send(bookToBeSaved);
 
 		// Assert
 		expect(res.statusCode).toEqual(201);
+		expect(res.body).toEqual(createdBook.toJSON()); // Convert Sequelize instance to plain object
 	});
 
-	test("status code 400 when saving ill formatted JSON", async () => {
-		// Arrange - we can enforce throwing an exception by mocking the implementation
+	test("should return a message that the book already exists", async () => {
+		//Arrange
 		jest.spyOn(bookService, "saveBook").mockImplementation(() => {
-			throw new Error("Error saving book");
+			throw new Error(`The book with this bookId, 2 already exists`);
 		});
 
 		// Act
-		const res = await request(app)
-			.post("/api/v1/books")
-			.send({ title: "Fantastic Mr. Fox", author: "Roald Dahl" }); // No bookId
+		const res = await request(app).post("/api/v1/books").send(dummyBookData[1]);
+
+		// Assert
+		expect(res.statusCode).toEqual(409);
+		expect(res.body).toEqual({
+			message: "The book with this bookId, 2 already exists",
+		});
+	});
+
+	test("should return a message that there are missing required properties", async () => {
+		//Arrange
+		const dummyBook = {
+			bookId: 3,
+			title: "Fantastic Mr. Fox",
+			author: "Roald Dahl",
+		};
+
+		jest.spyOn(bookService, "saveBook").mockImplementation(() => {
+			throw new Error("Invalid book object: Missing required properties");
+		});
+
+		// Act
+		const res = await request(app).post("/api/v1/books").send(dummyBook);
 
 		// Assert
 		expect(res.statusCode).toEqual(400);
+		expect(res.body).toEqual({
+			message: "Invalid book object: Missing required properties",
+		});
+	});
+
+	test("should return an internal server error", async () => {
+		//Arrange
+		const dummyBook = {
+			title: "Fantastic Mr. Fox",
+			author: "Roald Dahl",
+		};
+		jest.spyOn(bookService, "saveBook").mockImplementation(() => {
+			throw new Error("Internal server error");
+		});
+
+		// Act
+		const res = await request(app).post("/api/v1/books").send(dummyBook);
+
+		// Assert
+		expect(res.statusCode).toEqual(500);
+		expect(res.body).toEqual({
+			message: "Internal server error",
+		});
 	});
 });
 

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import * as bookService from "../services/books";
+import { ValidationError } from "sequelize";
 
 export const getBooks = async (req: Request, res: Response) => {
 	const books = await bookService.getBooks();
@@ -22,8 +23,22 @@ export const saveBook = async (req: Request, res: Response) => {
 	try {
 		const book = await bookService.saveBook(bookToBeSaved);
 		res.status(201).json(book);
-	} catch (error) {
-		res.status(400).json({ message: (error as Error).message });
+	} catch (error: any) {
+		if (
+			typeof error === "object" &&
+			"message" in error &&
+			error.message.includes("already exists")
+		) {
+			res.status(409).json({ message: error.message }); // Use 409 for Conflict error
+		} else if (
+			typeof error === "object" &&
+			"message" in error &&
+			error.message.includes("Invalid book object: Missing required properties")
+		) {
+			res.status(400).json({ message: error.message });
+		} else {
+			res.status(500).json({ message: "Internal server error" });
+		}
 	}
 };
 
